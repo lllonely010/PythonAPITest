@@ -1,7 +1,7 @@
 # PythonAPITest
  Simple API Tests using Python. Python, Pytest, Docker, Requests, etc. 
 
-# Run Locally
+# Run and Edit Locally
 ## Install Docker
 https://www.docker.com/products/docker-desktop
 ## Install Visual Studio Code
