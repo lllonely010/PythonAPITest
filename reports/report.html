@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <style>body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  /* do not increase min-width as some may use split screens */
+  min-width: 800px;
+  color: #999;
+}
+
+h1 {
+  font-size: 24px;
+  color: black;
+}
+
+h2 {
+  font-size: 16px;
+  color: black;
+}
+
+p {
+  color: black;
+}
+
+a {
+  color: #999;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/******************************
+ * SUMMARY INFORMATION
+ ******************************/
+#environment td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+}
+#environment tr:nth-child(odd) {
+  background-color: #f6f6f6;
+}
+
+/******************************
+ * TEST RESULT COLORS
+ ******************************/
+span.passed,
+.passed .col-result {
+  color: green;
+}
+
+span.skipped,
+span.xfailed,
+span.rerun,
+.skipped .col-result,
+.xfailed .col-result,
+.rerun .col-result {
+  color: orange;
+}
+
+span.error,
+span.failed,
+span.xpassed,
+.error .col-result,
+.failed .col-result,
+.xpassed .col-result {
+  color: red;
+}
+
+/******************************
+ * RESULTS TABLE
+ *
+ * 1. Table Layout
+ * 2. Extra
+ * 3. Sorting items
+ *
+ ******************************/
+/*------------------
+ * 1. Table Layout
+ *------------------*/
+#results-table {
+  border: 1px solid #e6e6e6;
+  color: #999;
+  font-size: 12px;
+  width: 100%;
+}
+#results-table th,
+#results-table td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+  text-align: left;
+}
+#results-table th {
+  font-weight: bold;
+}
+
+/*------------------
+ * 2. Extra
+ *------------------*/
+.log {
+  background-color: #e6e6e6;
+  border: 1px solid #e6e6e6;
+  color: black;
+  display: block;
+  font-family: "Courier New", Courier, monospace;
+  height: 230px;
+  overflow-y: scroll;
+  padding: 5px;
+  white-space: pre-wrap;
+}
+.log:only-child {
+  height: inherit;
+}
+
+div.image {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.image img {
+  width: 320px;
+}
+
+div.video {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.video video {
+  overflow: hidden;
+  width: 320px;
+  height: 240px;
+}
+
+.collapsed {
+  display: none;
+}
+
+.expander::after {
+  content: " (show details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.collapser::after {
+  content: " (hide details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+/*------------------
+ * 3. Sorting items
+ *------------------*/
+.sortable {
+  cursor: pointer;
+}
+
+.sort-icon {
+  font-size: 0px;
+  float: left;
+  margin-right: 5px;
+  margin-top: 5px;
+  /*triangle*/
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+.inactive .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #E6E6E6;
+}
+.asc.active .sort-icon {
+  /*finish triangle*/
+  border-bottom: 8px solid #999;
+}
+.desc.active .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #999;
+}
+</style></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>report.html</h1>
+    <p>Report generated on 14-Jun-2021 at 19:22:45 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.10.0", "pytest": "6.2.4"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Linux-5.10.25-linuxkit-x86_64-with-glibc2.33</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"Faker": "8.7.0", "allure-pytest": "2.9.43", "html": "3.1.1", "metadata": "1.11.0", "nunit": "0.6.0", "order": "1.0.0"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.9.5</td></tr></table>
+    <h2>Summary</h2>
+    <p>47 tests ran in 32.19 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">30 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">17 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_place_order[Place order [Data: {&quot;id&quot;:6600,&quot;petId&quot;:66001,&quot;quantity&quot;:7,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;approved&quot;,&quot;complete&quot;:true}], expected code=200]</td>
+          <td class="col-duration">1.02</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_store.TestStore object at 0x7f325bb44ca0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325bb44730&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_order_place = (&#x27;{&quot;id&quot;:6600,&quot;petId&quot;:66001,&quot;quantity&quot;:7,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;approved&quot;,&quot;complete&quot;:true}&#x27;, 200)<br/><br/>    @mark.order(2)<br/>    def test_store_place_order(self, api, logger, dp_order_place):<br/>        _order = JsonTransmuter.transmute_from(dp_order_place[0], Order)<br/>        logger.info(f&quot;Test case for placing an order, ID={_order.id}&quot;)<br/>        response = api.store_place_order(_order)<br/>        assert response.code == dp_order_place[1]<br/>        logger.info(f&quot;Order with ID={_order.id} was placed&quot;)<br/>        response = api.store_find_order_by_id(_order.id)<br/>&gt;       assert response.code == 200<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_store.py:26: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:21 Test case for placing an order, ID=6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/store/order HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:24 Order with ID=6600 was placed
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6600 HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_place_order[Place order [Data: {&quot;id&quot;:6601,&quot;petId&quot;:66011,&quot;quantity&quot;:5,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;placed&quot;,&quot;complete&quot;:true}], expected code=200]</td>
+          <td class="col-duration">1.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_store.TestStore object at 0x7f325babccd0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325bb44730&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_order_place = (&#x27;{&quot;id&quot;:6601,&quot;petId&quot;:66011,&quot;quantity&quot;:5,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;placed&quot;,&quot;complete&quot;:true}&#x27;, 200)<br/><br/>    @mark.order(2)<br/>    def test_store_place_order(self, api, logger, dp_order_place):<br/>        _order = JsonTransmuter.transmute_from(dp_order_place[0], Order)<br/>        logger.info(f&quot;Test case for placing an order, ID={_order.id}&quot;)<br/>        response = api.store_place_order(_order)<br/>        assert response.code == dp_order_place[1]<br/>        logger.info(f&quot;Order with ID={_order.id} was placed&quot;)<br/>        response = api.store_find_order_by_id(_order.id)<br/>&gt;       assert response.code == 200<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_store.py:26: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:21 Test case for placing an order, ID=6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/store/order HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:24 Order with ID=6601 was placed
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6601 HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_find_order_by_id[Find order [Data: {&quot;id&quot;:6601,&quot;petId&quot;:66011,&quot;quantity&quot;:5,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;placed&quot;,&quot;complete&quot;:true}], expected code=404]</td>
+          <td class="col-duration">0.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_store.TestStore object at 0x7f325b8dfe20&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8df250&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_order_find = (&#x27;{&quot;id&quot;:6601,&quot;petId&quot;:66011,&quot;quantity&quot;:5,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;placed&quot;,&quot;complete&quot;:true}&#x27;, 404)<br/><br/>    @mark.order(3)<br/>    def test_store_find_order_by_id(self, api, logger, dp_order_find):<br/>        _order = JsonTransmuter.transmute_from(dp_order_find[0], Order)<br/>        logger.info(f&quot;Test case for finding an order, ID={_order.id}&quot;)<br/>        response = api.store_find_order_by_id(_order.id)<br/>&gt;       assert response.code == dp_order_find[1]<br/><span class="error">E       assert 200 == 404</span><br/><span class="error">E         +200</span><br/><span class="error">E         -404</span><br/><br/>pythonapi/tests/test_store.py:35: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:33 Test case for finding an order, ID=6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6601 HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_logout</td>
+          <td class="col-duration">0.52</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325b8dff70&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8dfd60&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/><br/>    @mark.order(3)<br/>    def test_user_logout(self, api, logger):<br/>        logger.info(&quot;Test case for logging out from system&quot;)<br/>        response = api.user_logout()<br/>        assert response.code == 200<br/>        assert response.type == ApiResponseType.ok<br/>&gt;       assert response.message == &quot;ok&quot;<br/><span class="error">E       assert &#x27;{&quot;code&quot;:200,...essage&quot;:&quot;ok&quot;}&#x27; == &#x27;ok&#x27;</span><br/><span class="error">E         - ok</span><br/><span class="error">E         + {&quot;code&quot;:200,&quot;type&quot;:&quot;unknown&quot;,&quot;message&quot;:&quot;ok&quot;}</span><br/><br/>pythonapi/tests/test_user.py:34: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:30 Test case for logging out from system
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/logout HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_delete_order[Delete order [Data: 6601], expected code=200]</td>
+          <td class="col-duration">0.47</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_store.TestStore object at 0x7f325badc820&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325badc580&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;, dp_order_delete = (6601, 200)<br/><br/>    @mark.order(4)<br/>    def test_store_delete_order(self, api, logger, dp_order_delete):<br/>        logger.info(f&quot;Test case for deleting an order, ID={dp_order_delete[0]}&quot;)<br/>        response = api.store_delete_order(dp_order_delete[0])<br/>&gt;       assert response.code == dp_order_delete[1]<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_store.py:42: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:40 Test case for deleting an order, ID=6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/store/order/6601 HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_find_by_name[Create user [Data: {&quot;id&quot;:6600,&quot;username&quot;:&quot;user6600&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6600&quot;,&quot;phone&quot;:&quot;6600&quot;,&quot;userStatus&quot;:1}], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325bac09d0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a8c40&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_user_find = (&#x27;{&quot;id&quot;:6600,&quot;username&quot;:&quot;user6600&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6600&quot;,&quot;phone&quot;:&quot;6600&quot;,&quot;userStatus&quot;:1}&#x27;, 200)<br/><br/>    @mark.order(4)<br/>    def test_user_find_by_name(self, api, logger, dp_user_find):<br/>        _user = JsonTransmuter.transmute_from(dp_user_find[0], User)<br/>        logger.info(f&quot;Test case for finding user with name={_user.user_name}&quot;)<br/>        response = api.user_find_by_name(_user.user_name)<br/>&gt;       assert response.code == dp_user_find[1]<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:43: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:41 Test case for finding user with name=None
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/None HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_find_by_name[Create user [Data: {&quot;id&quot;:6601,&quot;username&quot;:&quot;user6601&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6601&quot;,&quot;phone&quot;:&quot;6601&quot;,&quot;userStatus&quot;:2}], expected code=200]</td>
+          <td class="col-duration">0.62</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325badcee0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a8c40&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_user_find = (&#x27;{&quot;id&quot;:6601,&quot;username&quot;:&quot;user6601&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6601&quot;,&quot;phone&quot;:&quot;6601&quot;,&quot;userStatus&quot;:2}&#x27;, 200)<br/><br/>    @mark.order(4)<br/>    def test_user_find_by_name(self, api, logger, dp_user_find):<br/>        _user = JsonTransmuter.transmute_from(dp_user_find[0], User)<br/>        logger.info(f&quot;Test case for finding user with name={_user.user_name}&quot;)<br/>        response = api.user_find_by_name(_user.user_name)<br/>&gt;       assert response.code == dp_user_find[1]<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:43: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:41 Test case for finding user with name=None
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/None HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_find_by_name[Create user [Data: {&quot;id&quot;:6602,&quot;username&quot;:&quot;user6602&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6602&quot;,&quot;phone&quot;:&quot;6602&quot;,&quot;userStatus&quot;:3}], expected code=200]</td>
+          <td class="col-duration">0.89</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325b8a8b80&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a8c40&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_user_find = (&#x27;{&quot;id&quot;:6602,&quot;username&quot;:&quot;user6602&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6602&quot;,&quot;phone&quot;:&quot;6602&quot;,&quot;userStatus&quot;:3}&#x27;, 200)<br/><br/>    @mark.order(4)<br/>    def test_user_find_by_name(self, api, logger, dp_user_find):<br/>        _user = JsonTransmuter.transmute_from(dp_user_find[0], User)<br/>        logger.info(f&quot;Test case for finding user with name={_user.user_name}&quot;)<br/>        response = api.user_find_by_name(_user.user_name)<br/>&gt;       assert response.code == dp_user_find[1]<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:43: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:41 Test case for finding user with name=None
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/None HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_delete[Pet ID=[6600], expected code=200]</td>
+          <td class="col-duration">0.83</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_pet.TestPet object at 0x7f325bb46490&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325bb46b80&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;, dp_pet_delete = (6600, &#x27;API_KEY&#x27;, 200)<br/><br/>    @allure.testcase(&quot;Test Pet Delete&quot;)<br/>    @mark.order(5)<br/>    def test_pet_delete(self, api, logger, dp_pet_delete):<br/>        logger.info(f&quot;Test case for deleting pet ID={dp_pet_delete[0]}&quot;)<br/>        response = api.pet_delete(dp_pet_delete[0], dp_pet_delete[1])<br/>        assert response.code == dp_pet_delete[2]<br/>        assert response.type == ApiResponseType.ok<br/>&gt;       assert response.message == &quot;Pet deleted&quot;<br/><span class="error">E       assert &#x27;{&quot;code&quot;:200,...sage&quot;:&quot;6600&quot;}&#x27; == &#x27;Pet deleted&#x27;</span><br/><span class="error">E         - Pet deleted</span><br/><span class="error">E         + {&quot;code&quot;:200,&quot;type&quot;:&quot;unknown&quot;,&quot;message&quot;:&quot;6600&quot;}</span><br/><br/>pythonapi/tests/test_pet.py:61: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:57 Test case for deleting pet ID=6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/pet/6600 HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_delete[Pet ID=[6601], expected code=200]</td>
+          <td class="col-duration">0.80</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_pet.TestPet object at 0x7f325b8c5460&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325bb46b80&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;, dp_pet_delete = (6601, &#x27;API_KEY&#x27;, 200)<br/><br/>    @allure.testcase(&quot;Test Pet Delete&quot;)<br/>    @mark.order(5)<br/>    def test_pet_delete(self, api, logger, dp_pet_delete):<br/>        logger.info(f&quot;Test case for deleting pet ID={dp_pet_delete[0]}&quot;)<br/>        response = api.pet_delete(dp_pet_delete[0], dp_pet_delete[1])<br/>        assert response.code == dp_pet_delete[2]<br/>        assert response.type == ApiResponseType.ok<br/>&gt;       assert response.message == &quot;Pet deleted&quot;<br/><span class="error">E       assert &#x27;{&quot;code&quot;:200,...sage&quot;:&quot;6601&quot;}&#x27; == &#x27;Pet deleted&#x27;</span><br/><span class="error">E         - Pet deleted</span><br/><span class="error">E         + {&quot;code&quot;:200,&quot;type&quot;:&quot;unknown&quot;,&quot;message&quot;:&quot;6601&quot;}</span><br/><br/>pythonapi/tests/test_pet.py:61: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:57 Test case for deleting pet ID=6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/pet/6601 HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_delete[Pet ID=[6602], expected code=200]</td>
+          <td class="col-duration">0.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_pet.TestPet object at 0x7f325badc370&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325bb46b80&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;, dp_pet_delete = (6602, &#x27;API_KEY&#x27;, 200)<br/><br/>    @allure.testcase(&quot;Test Pet Delete&quot;)<br/>    @mark.order(5)<br/>    def test_pet_delete(self, api, logger, dp_pet_delete):<br/>        logger.info(f&quot;Test case for deleting pet ID={dp_pet_delete[0]}&quot;)<br/>        response = api.pet_delete(dp_pet_delete[0], dp_pet_delete[1])<br/>        assert response.code == dp_pet_delete[2]<br/>        assert response.type == ApiResponseType.ok<br/>&gt;       assert response.message == &quot;Pet deleted&quot;<br/><span class="error">E       assert &#x27;{&quot;code&quot;:200,...sage&quot;:&quot;6602&quot;}&#x27; == &#x27;Pet deleted&#x27;</span><br/><span class="error">E         - Pet deleted</span><br/><span class="error">E         + {&quot;code&quot;:200,&quot;type&quot;:&quot;unknown&quot;,&quot;message&quot;:&quot;6602&quot;}</span><br/><br/>pythonapi/tests/test_pet.py:61: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:57 Test case for deleting pet ID=6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/pet/6602 HTTP/1.1&quot; 200 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_update[Update user user6600], expected code=200]</td>
+          <td class="col-duration">1.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325b8a9be0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a99a0&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_user_update = (&#x27;user6600&#x27;, &#x27;{&quot;id&quot;:6600,&quot;username&quot;:&quot;user6600new&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6600&quot;,&quot;phone&quot;:&quot;66000099&quot;,&quot;userStatus&quot;:1}&#x27;, 200)<br/><br/>    @mark.order(5)<br/>    def test_user_update(self, api, logger, dp_user_update):<br/>        _user = JsonTransmuter.transmute_from(dp_user_update[1], User)<br/>        logger.info(f&quot;Test case for updating user with name={dp_user_update[0]}&quot;)<br/>        response = api.user_update(dp_user_update[0], _user)<br/>        assert response.code == dp_user_update[2]<br/>        assert response.type == ApiResponseType.ok<br/>        logger.info(f&quot;User {dp_user_update[0]} was updated&quot;)<br/>        response = api.user_find_by_name(_user)<br/>&gt;       assert response.code == 200<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:55: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:49 Test case for updating user with name=user6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;PUT /v2/user/user6600 HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:53 User user6600 was updated
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/%3Cpythonapi.domain.user.User%20object%20at%200x7f325b8a96a0%3E HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_update[Update user user6601], expected code=200]</td>
+          <td class="col-duration">1.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325b881790&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a99a0&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_user_update = (&#x27;user6601&#x27;, &#x27;{&quot;id&quot;:6601,&quot;username&quot;:&quot;user6601new&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6601&quot;,&quot;phone&quot;:&quot;66010099&quot;,&quot;userStatus&quot;:2}&#x27;, 200)<br/><br/>    @mark.order(5)<br/>    def test_user_update(self, api, logger, dp_user_update):<br/>        _user = JsonTransmuter.transmute_from(dp_user_update[1], User)<br/>        logger.info(f&quot;Test case for updating user with name={dp_user_update[0]}&quot;)<br/>        response = api.user_update(dp_user_update[0], _user)<br/>        assert response.code == dp_user_update[2]<br/>        assert response.type == ApiResponseType.ok<br/>        logger.info(f&quot;User {dp_user_update[0]} was updated&quot;)<br/>        response = api.user_find_by_name(_user)<br/>&gt;       assert response.code == 200<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:55: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:49 Test case for updating user with name=user6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;PUT /v2/user/user6601 HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:53 User user6601 was updated
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/%3Cpythonapi.domain.user.User%20object%20at%200x7f325b881a60%3E HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_update[Update user user6602], expected code=200]</td>
+          <td class="col-duration">1.03</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325b8c53a0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a99a0&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;<br/>dp_user_update = (&#x27;user6602&#x27;, &#x27;{&quot;id&quot;:6602,&quot;username&quot;:&quot;user6602new&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6602&quot;,&quot;phone&quot;:&quot;66020099&quot;,&quot;userStatus&quot;:3}&#x27;, 200)<br/><br/>    @mark.order(5)<br/>    def test_user_update(self, api, logger, dp_user_update):<br/>        _user = JsonTransmuter.transmute_from(dp_user_update[1], User)<br/>        logger.info(f&quot;Test case for updating user with name={dp_user_update[0]}&quot;)<br/>        response = api.user_update(dp_user_update[0], _user)<br/>        assert response.code == dp_user_update[2]<br/>        assert response.type == ApiResponseType.ok<br/>        logger.info(f&quot;User {dp_user_update[0]} was updated&quot;)<br/>        response = api.user_find_by_name(_user)<br/>&gt;       assert response.code == 200<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:55: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:49 Test case for updating user with name=user6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;PUT /v2/user/user6602 HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:53 User user6602 was updated
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/%3Cpythonapi.domain.user.User%20object%20at%200x7f325b8c5f10%3E HTTP/1.1&quot; 404 None<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_delete[Delete user user6600], expected code=200]</td>
+          <td class="col-duration">0.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325b8817c0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a99a0&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;, dp_user_delete = (&#x27;user6600&#x27;, 200)<br/><br/>    @mark.order(6)<br/>    def test_user_delete(self, api, logger, dp_user_delete):<br/>        logger.info(f&quot;Test case for deleting user {dp_user_delete[0]}&quot;)<br/>        response = api.user_delete(dp_user_delete[0])<br/>&gt;       assert response.code == dp_user_delete[1]<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:62: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:60 Test case for deleting user user6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/user/user6600 HTTP/1.1&quot; 404 0<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_delete[Delete user user6601], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325bb46a90&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a99a0&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;, dp_user_delete = (&#x27;user6601&#x27;, 200)<br/><br/>    @mark.order(6)<br/>    def test_user_delete(self, api, logger, dp_user_delete):<br/>        logger.info(f&quot;Test case for deleting user {dp_user_delete[0]}&quot;)<br/>        response = api.user_delete(dp_user_delete[0])<br/>&gt;       assert response.code == dp_user_delete[1]<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:62: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:60 Test case for deleting user user6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/user/user6601 HTTP/1.1&quot; 404 0<br/></div></td></tr></tbody>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_delete[Delete user user6602], expected code=200]</td>
+          <td class="col-duration">0.52</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;pythonapi.tests.test_user.TestUser object at 0x7f325b8819d0&gt;, api = &lt;pythonapi.core.api_test.ApiTest object at 0x7f325b8a99a0&gt;<br/>logger = &lt;RootLogger root (DEBUG)&gt;, dp_user_delete = (&#x27;user6602&#x27;, 200)<br/><br/>    @mark.order(6)<br/>    def test_user_delete(self, api, logger, dp_user_delete):<br/>        logger.info(f&quot;Test case for deleting user {dp_user_delete[0]}&quot;)<br/>        response = api.user_delete(dp_user_delete[0])<br/>&gt;       assert response.code == dp_user_delete[1]<br/><span class="error">E       assert 404 == 200</span><br/><span class="error">E         +404</span><br/><span class="error">E         -200</span><br/><br/>pythonapi/tests/test_user.py:62: AssertionError<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:60 Test case for deleting user user6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/user/user6602 HTTP/1.1&quot; 404 0<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_add[Data=[{&quot;id&quot;:6600,&quot;name&quot;:&quot;dog6600&quot;,&quot;category&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;Dogs&quot;},&quot;photoUrls&quot;:[&quot;string&quot;],&quot;tags&quot;:[{&quot;id&quot;:0,&quot;name&quot;:&quot;string&quot;}],&quot;status&quot;:&quot;available&quot;}], expected code=200]</td>
+          <td class="col-duration">0.64</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:16 Test case for adding pet with ID=6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/pet HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:21 Pet with ID=6600 was added.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_add[Data=[{&quot;id&quot;:6601,&quot;name&quot;:&quot;dog6601&quot;,&quot;category&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;Dogs&quot;},&quot;photoUrls&quot;:[&quot;string&quot;],&quot;tags&quot;:[{&quot;id&quot;:0,&quot;name&quot;:&quot;string&quot;}],&quot;status&quot;:&quot;pending&quot;}], expected code=200]</td>
+          <td class="col-duration">0.52</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:16 Test case for adding pet with ID=6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/pet HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:21 Pet with ID=6601 was added.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_add[Data=[{&quot;id&quot;:6602,&quot;name&quot;:&quot;dog6602&quot;,&quot;category&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;Dogs&quot;},&quot;photoUrls&quot;:[&quot;string&quot;],&quot;tags&quot;:[{&quot;id&quot;:0,&quot;name&quot;:&quot;string&quot;}],&quot;status&quot;:&quot;sold&quot;}], expected code=200]</td>
+          <td class="col-duration">0.60</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:16 Test case for adding pet with ID=6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/pet HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:21 Pet with ID=6602 was added.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_inventory</td>
+          <td class="col-duration">0.54</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:12 Test case for store inventory
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/inventory HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:16 Test Store Inventory PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_create[Create user [Data: {&quot;id&quot;:6600,&quot;username&quot;:&quot;user6600&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6600&quot;,&quot;phone&quot;:&quot;6600&quot;,&quot;userStatus&quot;:1}], expected code=200]</td>
+          <td class="col-duration">0.48</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:13 Test case for adding user with ID=6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/user HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:17 User with ID=6600 was created.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_create[Create user [Data: {&quot;id&quot;:6601,&quot;username&quot;:&quot;user6601&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6601&quot;,&quot;phone&quot;:&quot;6601&quot;,&quot;userStatus&quot;:2}], expected code=200]</td>
+          <td class="col-duration">0.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:13 Test case for adding user with ID=6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/user HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:17 User with ID=6601 was created.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_create[Create user [Data: {&quot;id&quot;:6602,&quot;username&quot;:&quot;user6602&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6602&quot;,&quot;phone&quot;:&quot;6602&quot;,&quot;userStatus&quot;:3}], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:13 Test case for adding user with ID=6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/user HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:17 User with ID=6602 was created.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_update[Data=[{&quot;id&quot;:6600,&quot;name&quot;:&quot;new-dog6600&quot;,&quot;category&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;Dogs&quot;},&quot;photoUrls&quot;:[&quot;string&quot;],&quot;tags&quot;:[{&quot;id&quot;:0,&quot;name&quot;:&quot;string&quot;}],&quot;status&quot;:&quot;sold&quot;}], expected code=200]</td>
+          <td class="col-duration">0.51</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:27 Test case for updating pet to the store
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;PUT /v2/pet HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:32 Pet with ID=6600 was updated.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_update[Data=[{&quot;id&quot;:6601,&quot;name&quot;:&quot;new-dog6601&quot;,&quot;category&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;Dogs&quot;},&quot;photoUrls&quot;:[&quot;string&quot;],&quot;tags&quot;:[{&quot;id&quot;:0,&quot;name&quot;:&quot;string&quot;}],&quot;status&quot;:&quot;available&quot;}], expected code=200]</td>
+          <td class="col-duration">0.51</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:27 Test case for updating pet to the store
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;PUT /v2/pet HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:32 Pet with ID=6601 was updated.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_update[Data=[{&quot;id&quot;:6602,&quot;name&quot;:&quot;new-dog6602&quot;,&quot;category&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;Dogs&quot;},&quot;photoUrls&quot;:[&quot;string&quot;],&quot;tags&quot;:[{&quot;id&quot;:0,&quot;name&quot;:&quot;string&quot;}],&quot;status&quot;:&quot;pending&quot;}], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:27 Test case for updating pet to the store
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;PUT /v2/pet HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:32 Pet with ID=6602 was updated.<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_place_order[Place order [Data: {&quot;id&quot;:6602,&quot;petId&quot;:66021,&quot;quantity&quot;:6,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;delivered&quot;,&quot;complete&quot;:true}], expected code=200]</td>
+          <td class="col-duration">1.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:21 Test case for placing an order, ID=6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;POST /v2/store/order HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:24 Order with ID=6602 was placed
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6602 HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:28 Test Store Place Order PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_login[Login with user name [user6600] and password [6600], expected code=200]</td>
+          <td class="col-duration">0.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:21 Test case for logging with user name=user6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/login?username=user6600&amp;password=6600 HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:25 User user6600 was logged.
+INFO     root:test_user.py:26 Test User Login PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_login[Login with user name [user6601] and password [6601], expected code=200]</td>
+          <td class="col-duration">0.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:21 Test case for logging with user name=user6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/login?username=user6601&amp;password=6601 HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:25 User user6601 was logged.
+INFO     root:test_user.py:26 Test User Login PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_login[Login with user name [user6602] and password [6602], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:21 Test case for logging with user name=user6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/login?username=user6602&amp;password=6602 HTTP/1.1&quot; 200 None
+INFO     root:test_user.py:25 User user6602 was logged.
+INFO     root:test_user.py:26 Test User Login PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_find_by_status[Pet status=[available], expected code=200]</td>
+          <td class="col-duration">0.76</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:37 Test case for finding pet by status [available]
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/pet/findByStatus?status=available HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:42 Test Find Pet by Status PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_find_by_status[Pet status=[pending], expected code=200]</td>
+          <td class="col-duration">0.62</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:37 Test case for finding pet by status [pending]
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/pet/findByStatus?status=pending HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:42 Test Find Pet by Status PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_find_by_status[Pet status=[sold], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:37 Test case for finding pet by status [sold]
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/pet/findByStatus?status=sold HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:42 Test Find Pet by Status PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_find_order_by_id[Find order [Data: {&quot;id&quot;:6600,&quot;petId&quot;:66001,&quot;quantity&quot;:7,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;approved&quot;,&quot;complete&quot;:true}], expected code=200]</td>
+          <td class="col-duration">0.49</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:33 Test case for finding an order, ID=6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6600 HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:36 Test Store Find Order By ID PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_find_order_by_id[Find order [Data: {&quot;id&quot;:6602,&quot;petId&quot;:66021,&quot;quantity&quot;:6,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;delivered&quot;,&quot;complete&quot;:true}], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:33 Test case for finding an order, ID=6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6602 HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:36 Test Store Find Order By ID PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_find_order_by_id[Find order [Data: {&quot;id&quot;:777777,&quot;petId&quot;:66021,&quot;quantity&quot;:6,&quot;shipDate&quot;:&quot;2021-02-03T19:43:55.849+00:00&quot;,&quot;status&quot;:&quot;delivered&quot;,&quot;complete&quot;:true}], expected code=404]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:33 Test case for finding an order, ID=777777
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/777777 HTTP/1.1&quot; 404 None
+INFO     root:test_store.py:36 Test Store Find Order By ID PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_find_by_tags[Pet tags=[[&apos;{&quot;id&quot;:0,&quot;name&quot;:&quot;Tag1&quot;}&apos;]], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:47 Test case for finding pet by tags list
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/pet/findByTags?tags=Tag1 HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:52 Test Find Pet by Tag PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_find_by_tags[Pet tags=[[&apos;{&quot;id&quot;:0,&quot;name&quot;:&quot;Tag1&quot;}&apos;, &apos;{&quot;id&quot;:22,&quot;name&quot;:&quot;tag2&quot;}&apos;]], expected code=200]</td>
+          <td class="col-duration">0.50</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:47 Test case for finding pet by tags list
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/pet/findByTags?tags=Tag1&amp;tags=tag2 HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:52 Test Find Pet by Tag PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_pet.py::TestPet::test_pet_find_by_tags[Pet tags=[[&apos;{&quot;id&quot;:10,&quot;name&quot;:&quot;tag11&quot;}&apos;]], expected code=200]</td>
+          <td class="col-duration">0.53</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_pet.py:47 Test case for finding pet by tags list
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/pet/findByTags?tags=tag11 HTTP/1.1&quot; 200 None
+INFO     root:test_pet.py:52 Test Find Pet by Tag PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_delete_order[Delete order [Data: 6600], expected code=200]</td>
+          <td class="col-duration">0.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:40 Test case for deleting an order, ID=6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/store/order/6600 HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:43 Order ID=6600 was deleted
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6600 HTTP/1.1&quot; 404 None
+INFO     root:test_store.py:47 Test Store Delete Order PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_delete_order[Delete order [Data: 6602], expected code=200]</td>
+          <td class="col-duration">0.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:40 Test case for deleting an order, ID=6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/store/order/6602 HTTP/1.1&quot; 200 None
+INFO     root:test_store.py:43 Order ID=6602 was deleted
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/6602 HTTP/1.1&quot; 404 None
+INFO     root:test_store.py:47 Test Store Delete Order PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_store.py::TestStore::test_store_delete_order[Delete order [Data: 777777], expected code=404]</td>
+          <td class="col-duration">1.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_store.py:40 Test case for deleting an order, ID=777777
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/store/order/777777 HTTP/1.1&quot; 404 None
+INFO     root:test_store.py:43 Order ID=777777 was deleted
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/store/order/777777 HTTP/1.1&quot; 404 None
+INFO     root:test_store.py:47 Test Store Delete Order PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_find_by_name[Create user [Data: {&quot;id&quot;:10,&quot;username&quot;:&quot;theUser&quot;,&quot;firstName&quot;:&quot;Test&quot;,&quot;lastName&quot;:&quot;Li&quot;,&quot;email&quot;:&quot;TestLi@email.com&quot;,&quot;password&quot;:&quot;6600&quot;,&quot;phone&quot;:&quot;6600&quot;,&quot;userStatus&quot;:1}], expected code=404]</td>
+          <td class="col-duration">0.67</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:41 Test case for finding user with name=None
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/None HTTP/1.1&quot; 404 None
+INFO     root:test_user.py:44 Test User Find by Name PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_delete[Delete user user6600], expected code=404]</td>
+          <td class="col-duration">0.99</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:60 Test case for deleting user user6600
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/user/user6600 HTTP/1.1&quot; 404 0
+INFO     root:test_user.py:63 User user6600 was deleted
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/user6600 HTTP/1.1&quot; 404 None
+INFO     root:test_user.py:67 Test User Delete PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_delete[Delete user user6601], expected code=404]</td>
+          <td class="col-duration">1.05</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:60 Test case for deleting user user6601
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/user/user6601 HTTP/1.1&quot; 404 0
+INFO     root:test_user.py:63 User user6601 was deleted
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/user6601 HTTP/1.1&quot; 404 None
+INFO     root:test_user.py:67 Test User Delete PASSED<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">pythonapi/tests/test_user.py::TestUser::test_user_delete[Delete user user6602], expected code=404]</td>
+          <td class="col-duration">1.24</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>INFO     root:test_user.py:60 Test case for deleting user user6602
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;DELETE /v2/user/user6602 HTTP/1.1&quot; 404 0
+INFO     root:test_user.py:63 User user6602 was deleted
+DEBUG    urllib3.connectionpool:connectionpool.py:971 Starting new HTTPS connection (1): petstore.swagger.io:443
+DEBUG    urllib3.connectionpool:connectionpool.py:452 https://petstore.swagger.io:443 &quot;GET /v2/user/user6602 HTTP/1.1&quot; 404 None
+INFO     root:test_user.py:67 Test User Delete PASSED<br/></div></td></tr></tbody></table></body></html>

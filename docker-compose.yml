@@ -1,0 +1,14 @@
+version: '3'
+services:
+  mypython:
+    build:
+      context: .
+    image: mypython
+    working_dir: /home/mypython/workspaces
+    volumes:
+      - .:/home/mypython/workspaces
+    shm_size: '256m'
+    user: mypython
+    command: sleep infinity
+    ports:
+    - "9225:9224"
