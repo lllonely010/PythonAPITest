@@ -22,6 +22,9 @@ Once this is completed, the framework should be ready to run tests.
 ## Running tests in Terminal to generate a html report under reports
 pytest -v --no-summary --html=/workspace/reports/report.html --self-contained-html pythonapi
 
+## Better report using Allure
+Only an examle in test_pet.py
+
 # Generrate nunit XML report to supprt Calliope dashboard
 Pytest is not supported by Calliope. So install pytest-nunit so can import result to dashboard.
 pip3 install pytest-nunit
