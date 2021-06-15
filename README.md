@@ -27,7 +27,7 @@ Pytest is not supported by Calliope. So install pytest-nunit so can import resul
 - pip3 install pytest-nunit
 - pytest pythonapi/tests -v --nunit-xml=APItest-results.xml
 
-## Setup pipleline on CircleCI using this configuration and image is ready on docker hub
+### Setup pipleline on CircleCI using this configuration and image is ready on docker hub or build imgae using docker file
 .circleci/config.yml
 
 ### Example Jenkinsfile to add a job to run in Docker
